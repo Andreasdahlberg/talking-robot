@@ -10,6 +10,7 @@
 
 #define AUDIOLIBRARY_HELLO_ID    0
 #define AUDIOLIBRARY_BYE_ID      1
+#define AUDIOLIBRARY_ESPEAK_ID   2
 
 struct sound
 {
