@@ -17,7 +17,6 @@ struct sound_{name} {{
 }};
 """
 
-
 STRUCT_DATA_FMT = """
 static struct sound_{name} {name} = {{
     {{{length}}},
@@ -25,22 +24,22 @@ static struct sound_{name} {name} = {{
 }};
 """
 
-def trim_data_section(data_section):
+def trim(wav):
     QUIET_SAMPLE = 128
 
     leading_trim = 0
     trailing_trim = 0
 
-    for i in range(len(data_section)):
-        if data_section[i] != QUIET_SAMPLE:
+    for i in range(wav.data_size):
+        if wav.data[i] != QUIET_SAMPLE:
             print('Trim {} leading samples'.format(i))
             leading_trim = i
             if leading_trim > 0:
                 leading_trim -= 1
             break
 
-    for i in range(len(data_section)):
-        if data_section[len(data_section) - 1 - i] != QUIET_SAMPLE:
+    for i in range(wav.data_size):
+        if wav.data[wav.data_size - 1 - i] != QUIET_SAMPLE:
             print('Trim {} trailing samples'.format(i))
             trailing_trim = i
             if trailing_trim > 0:
@@ -48,10 +47,10 @@ def trim_data_section(data_section):
             break
 
     total_trim = leading_trim + trailing_trim
+    print('Trim {} samples({}%)'.format(total_trim, int(total_trim / wav.data_size * 100)))
 
-    print('Trim {} samples({}%)'.format(total_trim, int(total_trim / len(data_section) * 100)))
+    wav.data = wav.data[leading_trim:-trailing_trim]
 
-    return data_section[leading_trim:-trailing_trim]
 
 class Wav(object):
     _WAV_HEADER_FMT = '4si4s3sIHHIIHH4sI'
@@ -112,30 +111,6 @@ class Wav(object):
             self._fill(raw_data)
 
 
-"""
-with open('low.wav', 'rb') as wav_file:
-    data = wav_file.read()
-
-    header_size = struct.calcsize(WAV_HEADER_FMT)
-
-    header = struct.unpack(WAV_HEADER_FMT, data[:struct.calcsize(WAV_HEADER_FMT)])
-    print(header)
-
-    data_size = header[12]
-    data_section = data[header_size:data_size]
-
-    trimmed_data_section = trim_data_section(data_section)
-    trimmed_data_size = len(trimmed_data_section)
-
-    data_str = ','.join([str(i) for i in trimmed_data_section])
-
-
-    print(STRUCT_FMT.format(name='espeak', length=trimmed_data_size))
-    print(STRUCT_DATA_FMT.format(name='espeak', length=trimmed_data_size, data=data_str))
-
-    trim_data_section(data_section)
-"""
-
-
 wav = Wav()
 wav.load('low.wav')
+trim(wav)
