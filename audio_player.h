@@ -18,6 +18,7 @@ struct audio_player
 
 void AudioPlayer_Init(struct audio_player *self_p);
 bool AudioPlayer_IsPlaying(const struct audio_player *self_p);
+void AudioPlayer_Wait(const struct audio_player *self_p);
 void AudioPlayer_Play(struct audio_player *self_p, const struct sound *sound_p);
 void AudioPlayer_Stop(struct audio_player *self_p);
 bool AudioPlayer_HasMoreSamples(const struct audio_player *self_p);

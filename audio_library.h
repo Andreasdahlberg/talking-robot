@@ -7,10 +7,11 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <avr/pgmspace.h>
 
-#define AUDIOLIBRARY_HELLO_ID    0
-#define AUDIOLIBRARY_BYE_ID      1
-#define AUDIOLIBRARY_ESPEAK_ID   2
+#define AUDIOLIBRARY_HELLO_ID   0
+#define AUDIOLIBRARY_NAME_ID    1
+#define AUDIOLIBRARY_KERSTIN_ID 2
 
 struct sound
 {
