@@ -1,14 +1,8 @@
-import os
-import subprocess
+# Script to generate c-structs from Wav-files.
+
 import struct
 
-# ffmpeg -i out.wav -ar 8000 -c:a pcm_u8 low.wav
-# ffmpeg -i out.wav -ar 8000 -c:a pcm_u8 -flags +bitexact low.wav // No list section
-
 WAV_HEADER_FMT = '4si4s3sIHHIIHH4sI'
-
-wav_file = open('out.wav', 'rb')
-
 
 STRUCT_FMT = """
 struct sound_{name} {{
@@ -18,20 +12,23 @@ struct sound_{name} {{
 """
 
 STRUCT_DATA_FMT = """
-static struct sound_{name} {name} = {{
+static const struct sound_{name} {name} PROGMEM = {{
     {{{length}}},
     {{{data}}}
 }};
 """
 
+
 def trim(wav):
-    QUIET_SAMPLE = 128
+    """Remove any leading and trailing quiet samples. """
+
+    quiet_sample = 128
 
     leading_trim = 0
     trailing_trim = 0
 
     for i in range(wav.data_size):
-        if wav.data[i] != QUIET_SAMPLE:
+        if wav.data[i] != quiet_sample:
             print('Trim {} leading samples'.format(i))
             leading_trim = i
             if leading_trim > 0:
@@ -39,7 +36,7 @@ def trim(wav):
             break
 
     for i in range(wav.data_size):
-        if wav.data[wav.data_size - 1 - i] != QUIET_SAMPLE:
+        if wav.data[wav.data_size - 1 - i] != quiet_sample:
             print('Trim {} trailing samples'.format(i))
             trailing_trim = i
             if trailing_trim > 0:
@@ -52,17 +49,30 @@ def trim(wav):
     wav.data = wav.data[leading_trim:-trailing_trim]
 
 
+def wav_to_c_struct(wav):
+    sample_str = ','.join(['0x{:02X}'.format(sample) for sample in wav.data])
+    print(STRUCT_FMT.format(name=wav.name, length=wav.data_size))
+    print(STRUCT_DATA_FMT.format(name=wav.name, length=wav.data_size, data=sample_str))
+
+
 class Wav(object):
-    _WAV_HEADER_FMT = '4si4s3sIHHIIHH4sI'
+    _WAV_HEADER_DATA_FMT = '4sI'
+    _WAV_HEADER_DATA_SIZE = struct.calcsize(_WAV_HEADER_DATA_FMT)
+    _WAV_HEADER_FMT = '4si4s3sIHHIIHH' + _WAV_HEADER_DATA_FMT
     _WAV_HEADER_SIZE = struct.calcsize(_WAV_HEADER_FMT)
 
-    def __init__(self):
+    def __init__(self, name):
+        self._name = name
         self._file_size = 0
         self._number_of_channels = 0
         self._sample_rate = 0
         self._bits_per_sample = 0
         self._data_size = 0
         self._data = None
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def file_size(self):
@@ -96,21 +106,41 @@ class Wav(object):
     def _fill(self, raw_data):
         header = struct.unpack(self._WAV_HEADER_FMT, raw_data[:self._WAV_HEADER_SIZE])
 
+        print(header)
+
         self._file_size = header[1]
         self._number_of_channels = header[6]
         self._sample_rate = header[7]
         self._bits_per_sample = header[10]
-        self._data_size = header[12]
-        self._data = raw_data[self._WAV_HEADER_SIZE:self._WAV_HEADER_SIZE + self._data_size]
 
-        assert(self._data_size == len(self._data))
+        if header[11] == b'data':
+            self._data_size = header[12]
+            self._data = raw_data[self._WAV_HEADER_SIZE:self._WAV_HEADER_SIZE + self._data_size]
+        elif header[11] == b'LIST':
+            list_size = header[12]
+
+            data_header_start = self._WAV_HEADER_SIZE + list_size
+            data_header_end = data_header_start + self._WAV_HEADER_DATA_SIZE
+
+            data = struct.unpack(self._WAV_HEADER_DATA_FMT,
+                                 raw_data[data_header_start:data_header_end])
+
+            self._data_size = data[1]
+            self._data = raw_data[data_header_end:data_header_end + self._data_size]
+        else:
+            assert False
+
+
+        assert self._data_size == len(self._data)
 
     def load(self, file_name):
         with open(file_name, 'rb') as wav_file:
             raw_data = wav_file.read()
             self._fill(raw_data)
 
-
-wav = Wav()
-wav.load('low.wav')
+"""
+wav = Wav('test')
+wav.load('test_8.wav')
 trim(wav)
+wav_to_c_struct(wav)
+"""
