@@ -1,69 +1,34 @@
-# Script to generate c-structs from Wav-files.
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*
+
+"""Script to generate c-structs from Wav-files."""
 
 import struct
 
-WAV_HEADER_FMT = '4si4s3sIHHIIHH4sI'
-
-STRUCT_FMT = """
-struct sound_{name} {{
-    struct sound base;
-    uint8_t data[{length}];
-}};
-"""
-
-STRUCT_DATA_FMT = """
-static const struct sound_{name} {name} PROGMEM = {{
-    {{{length}}},
-    {{{data}}}
-}};
-"""
-
-
-def trim(wav):
-    """Remove any leading and trailing quiet samples. """
-
-    quiet_sample = 128
-
-    leading_trim = 0
-    trailing_trim = 0
-
-    for i in range(wav.data_size):
-        if wav.data[i] != quiet_sample:
-            print('Trim {} leading samples'.format(i))
-            leading_trim = i
-            if leading_trim > 0:
-                leading_trim -= 1
-            break
-
-    for i in range(wav.data_size):
-        if wav.data[wav.data_size - 1 - i] != quiet_sample:
-            print('Trim {} trailing samples'.format(i))
-            trailing_trim = i
-            if trailing_trim > 0:
-                trailing_trim -= 1
-            break
-
-    total_trim = leading_trim + trailing_trim
-    print('Trim {} samples({}%)'.format(total_trim, int(total_trim / wav.data_size * 100)))
-
-    wav.data = wav.data[leading_trim:-trailing_trim]
-
-
-def wav_to_c_struct(wav):
-    sample_str = ','.join(['0x{:02X}'.format(sample) for sample in wav.data])
-    print(STRUCT_FMT.format(name=wav.name, length=wav.data_size))
-    print(STRUCT_DATA_FMT.format(name=wav.name, length=wav.data_size, data=sample_str))
-
-
-class Wav(object):
+class Wav():
+    """Class for storing and manipulating WAV-files."""
     _WAV_HEADER_DATA_FMT = '4sI'
     _WAV_HEADER_DATA_SIZE = struct.calcsize(_WAV_HEADER_DATA_FMT)
     _WAV_HEADER_FMT = '4si4s3sIHHIIHH' + _WAV_HEADER_DATA_FMT
     _WAV_HEADER_SIZE = struct.calcsize(_WAV_HEADER_FMT)
+    _WAV_QUIET_SAMPLE = 128
+
+    _WAV_STRUCT_FMT = """
+    struct sound_{name} {{
+        struct sound base;
+        uint8_t data[{length}];
+    }};
+    """
+
+    _WAV_STRUCT_DATA_FMT = """
+    static const struct sound_{name} {name} PROGMEM = {{
+        {{{length}}},
+        {{{data}}}
+    }};
+    """
 
     def __init__(self, name):
         self._name = name
-        self._file_size = 0
         self._number_of_channels = 0
         self._sample_rate = 0
         self._bits_per_sample = 0
@@ -73,10 +38,6 @@ class Wav(object):
     @property
     def name(self):
         return self._name
-
-    @property
-    def file_size(self):
-        return self._file_size
 
     @property
     def number_of_channels(self):
@@ -106,9 +67,6 @@ class Wav(object):
     def _fill(self, raw_data):
         header = struct.unpack(self._WAV_HEADER_FMT, raw_data[:self._WAV_HEADER_SIZE])
 
-        print(header)
-
-        self._file_size = header[1]
         self._number_of_channels = header[6]
         self._sample_rate = header[7]
         self._bits_per_sample = header[10]
@@ -134,13 +92,49 @@ class Wav(object):
         assert self._data_size == len(self._data)
 
     def load(self, file_name):
+        """Load object with data from file."""
         with open(file_name, 'rb') as wav_file:
             raw_data = wav_file.read()
             self._fill(raw_data)
 
-"""
-wav = Wav('test')
-wav.load('test_8.wav')
-trim(wav)
-wav_to_c_struct(wav)
-"""
+    def trim(self):
+        """Remove any leading and trailing quiet samples."""
+        leading_trim = 0
+        trailing_trim = 0
+
+        for i in range(self.data_size):
+            if self.data[i] != self._WAV_QUIET_SAMPLE:
+                leading_trim = i
+                if leading_trim > 0:
+                    leading_trim -= 1
+                break
+
+        for i in range(self.data_size):
+            if self.data[self.data_size - 1 - i] != self._WAV_QUIET_SAMPLE:
+                trailing_trim = i
+                if trailing_trim > 0:
+                    trailing_trim -= 1
+                break
+
+        self.data = self.data[leading_trim:-trailing_trim]
+        return leading_trim + trailing_trim
+
+    def to_c_struct(self):
+        """Return WAV-data formated as a C-struct."""
+        sample_str = ','.join(['0x{:02X}'.format(sample) for sample in self.data])
+        return (self._WAV_STRUCT_FMT.format(name=self.name, length=self.data_size),
+                self._WAV_STRUCT_DATA_FMT.format(name=self.name,
+                                                 length=self.data_size,
+                                                 data=sample_str))
+
+
+def main():
+    wav = Wav('dog')
+    wav.load('dog.wav')
+    wav.trim()
+    wav.to_c_struct()
+    return 0
+
+
+if __name__ == '__main__':
+    exit(main())
