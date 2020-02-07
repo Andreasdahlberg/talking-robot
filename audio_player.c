@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <avr/pgmspace.h>
 
 #include "audio_player.h"
 
