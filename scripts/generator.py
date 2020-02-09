@@ -46,8 +46,11 @@ def main():
             index += 1
 
     includes = '\n'.join([INCLUDE_FMT.format(name_lower=name.lower()) for name in names])
-    defines = '\n'.join([ID_DEFINE_FMT.format(name_upper=name.upper(), id=index) for index, name in enumerate(names)])
     cases = '\n'.join([CASE_FMT.format(name_upper=name.upper(), name_lower=name.lower()) for name in names])
+
+    #Add 'max' to names to get a define with the number of defined names
+    names.append('max')
+    defines = '\n'.join([ID_DEFINE_FMT.format(name_upper=name.upper(), id=index) for index, name in enumerate(names)])
 
 
     with open('audio_library_template.h') as template_h:
