@@ -4,8 +4,11 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 {id_defines}
+
+#define AUDIOLIBRARY_DELAY_ID(delay_ms) (AUDIOLIBRARY_MAX_ID + (delay_ms))
 
 struct sound
 {{
@@ -14,5 +17,6 @@ struct sound
 }};
 
 const struct sound *AudioLibrary_GetSoundById(size_t sound_id);
+bool AudioLibrary_IsValidId(size_t sound_id);
 
 #endif

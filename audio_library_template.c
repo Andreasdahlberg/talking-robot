@@ -16,3 +16,8 @@ const struct sound *AudioLibrary_GetSoundById(size_t sound_id)
             assert(NULL && "Invalid ID - no matching sound");
     }}
 }}
+
+bool AudioLibrary_IsValidId(size_t sound_id)
+{{
+    return sound_id < AUDIOLIBRARY_MAX_ID;
+}}
