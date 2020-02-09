@@ -23,5 +23,6 @@ void AudioPlayer_Play(struct audio_player *self_p, const struct sound *sound_p);
 void AudioPlayer_Stop(struct audio_player *self_p);
 bool AudioPlayer_HasMoreSamples(const struct audio_player *self_p);
 uint8_t AudioPlayer_GetNextSample(struct audio_player *self_p);
+void AudioPlayer_PlaySequence(struct audio_player *self_p, uint8_t *sequence_p, size_t length, uint_least16_t spacing);
 
 #endif
