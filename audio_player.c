@@ -59,6 +59,8 @@ bool AudioPlayer_IsPlaying(const struct audio_player *self_p)
 
 void AudioPlayer_Wait(const struct audio_player *self_p)
 {
+    assert(self_p);
+
     while (AudioPlayer_IsPlaying(self_p))
     {
 
@@ -105,6 +107,9 @@ uint8_t AudioPlayer_GetNextSample(struct audio_player *self_p)
 
 void AudioPlayer_PlaySequence(struct audio_player *self_p, uint8_t *sequence_p, size_t length, uint_least16_t spacing)
 {
+    assert(self_p);
+    assert(sequence_p);
+
     for (size_t i = 0; i < length; ++i)
     {
         const uint8_t id = sequence_p[i];
