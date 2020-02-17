@@ -22,6 +22,9 @@
 //DEFINES
 //////////////////////////////////////////////////////////////////////////
 
+#define SAMPLE_FREQUENCY    (8000)
+#define SAMPLE_PERIOD_US    (1000000 / SAMPLE_FREQUENCY)
+
 //////////////////////////////////////////////////////////////////////////
 //TYPE DEFINITIONS
 //////////////////////////////////////////////////////////////////////////
@@ -41,8 +44,7 @@ static inline void SetupPWM(void);
 static inline void SetupButton(void);
 static inline void SetPWMDutyCycle(uint8_t duty_cycle);
 static inline uint8_t GetPWMDutyCycle(void);
-static inline void RampUpDutyCycle(uint8_t target_duty_cycle);
-static inline void RampDownDutyCycle(uint8_t target_duty_cycle);
+static void RampDutyCycle(uint8_t target_duty_cycle);
 
 //////////////////////////////////////////////////////////////////////////
 //INTERUPT SERVICE ROUTINES
@@ -85,17 +87,19 @@ int main(void)
 
     sei();
 
+    RampDutyCycle(128);
+
     uint8_t counter = 2;
     while (1)
     {
         AudioPlayer_Play(&player, AudioLibrary_GetSoundById(counter % 3));
         AudioPlayer_Wait(&player);
 
-        RampUpDutyCycle(255);
+        RampDutyCycle(0);
         set_sleep_mode(SLEEP_MODE_PWR_DOWN);
         sleep_mode();
 
-        RampDownDutyCycle(128);
+        RampDutyCycle(128);
         ++counter;
     }
 }
@@ -113,7 +117,7 @@ static inline void SetupSampleInterrupt(void)
     TCCR0B |= (1 << CS01);
 
     /* A compare value of 128 gives a frequency of 8 kHz*/
-    OCR0A = 125;
+    OCR0A = SAMPLE_PERIOD_US;
 
     /* Enabled interrupt on compare match A. */
     TIMSK0 |= (1 << OCIE0A);
@@ -159,30 +163,14 @@ static inline uint8_t GetPWMDutyCycle(void)
     return OCR1A;
 }
 
-static inline void RampUpDutyCycle(uint8_t target_duty_cycle)
+static void RampDutyCycle(uint8_t target_duty_cycle)
 {
-    if (target_duty_cycle > GetPWMDutyCycle())
+    int8_t modifier = (target_duty_cycle > GetPWMDutyCycle()) ? 1 : -1;
+
+    for (uint8_t duty_cycle = GetPWMDutyCycle(); duty_cycle != target_duty_cycle; duty_cycle += modifier)
     {
-        for (uint8_t duty_cycle = GetPWMDutyCycle(); duty_cycle < target_duty_cycle; ++duty_cycle)
-        {
-            SetPWMDutyCycle(duty_cycle);
-
-            /* A delay of 125 μS gives a frequency of 8 kHz. */
-            _delay_us(125);
-        }
+        SetPWMDutyCycle(duty_cycle);
+        _delay_us(SAMPLE_PERIOD_US);
     }
-}
-
-static inline void RampDownDutyCycle(uint8_t target_duty_cycle)
-{
-    if (target_duty_cycle > GetPWMDutyCycle())
-    {
-        for (uint8_t duty_cycle = GetPWMDutyCycle(); duty_cycle > target_duty_cycle; --duty_cycle)
-        {
-            SetPWMDutyCycle(duty_cycle);
-
-            /* A delay of 125 μS gives a frequency of 8 kHz. */
-            _delay_us(125);
-        }
-    }
+    SetPWMDutyCycle(GetPWMDutyCycle() + modifier);
 }
