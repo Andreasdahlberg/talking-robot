@@ -42,6 +42,9 @@ static struct audio_player player;
 static inline void SetupSampleInterrupt(void);
 static inline void SetupPWM(void);
 static inline void SetupButton(void);
+static inline void SetupLED(void);
+static inline void EnableLED(void);
+static inline void DisableLED(void);
 static inline void SetPWMDutyCycle(uint8_t duty_cycle);
 static inline uint8_t GetPWMDutyCycle(void);
 static void RampDutyCycle(uint8_t target_duty_cycle);
@@ -84,6 +87,7 @@ int main(void)
     SetupSampleInterrupt();
     SetupPWM();
     SetupButton();
+    SetupLED();
 
     sei();
 
@@ -96,6 +100,7 @@ int main(void)
         AudioPlayer_Wait(&player);
 
         RampDutyCycle(0);
+        DisableLED();
         set_sleep_mode(SLEEP_MODE_PWR_DOWN);
         sleep_mode();
 
@@ -151,6 +156,23 @@ static inline void SetupButton(void)
     /* Enable pin change interrupts */
     PCMSK0 |= (1 << PCINT0);
     PCICR |= (1 << PCIE0);
+}
+
+static inline void SetupLED(void)
+{
+    /* Set PB2 as output and pull low. */
+    DDRB |= (1 << PB2);
+    PORTB &= ~(1 << PB2);
+}
+
+static inline void EnableLED(void)
+{
+    PORTB |= (1 << PB2);
+}
+
+static inline void DisableLED(void)
+{
+    PORTB &= ~(1 << PB2);
 }
 
 static inline void SetPWMDutyCycle(uint8_t duty_cycle)
