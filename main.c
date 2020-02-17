@@ -134,6 +134,8 @@ static inline void SetupPWM(void)
     /* Set prescaler to 1:1 */
     TCCR1B |= (1 << CS10);
 
+    /* Set PWM duty cycle to 0%*/
+    OCR1A = 0;
 }
 
 static inline void SetupButton(void)
