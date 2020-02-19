@@ -149,8 +149,8 @@ static inline void SetupPWM(void)
 
 static inline void SetupButton(void)
 {
-    /* Set PB0 as output with pull-up */
-    DDRB |= (1 << PB0);
+    /* Set PB0 as input with pull-up */
+    DDRB &= ~(1 << PB0);
     PORTB |= (1 << PB0);
 
     /* Enable pin change interrupts */
