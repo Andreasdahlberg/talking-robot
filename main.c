@@ -22,6 +22,10 @@
 //DEFINES
 //////////////////////////////////////////////////////////////////////////
 
+#define SAMPLE_FREQUENCY    (8000)
+#define SAMPLE_PERIOD_US    (1000000 / SAMPLE_FREQUENCY)
+#define PRESCALER_RATIO     (1)
+
 //////////////////////////////////////////////////////////////////////////
 //TYPE DEFINITIONS
 //////////////////////////////////////////////////////////////////////////
@@ -39,10 +43,12 @@ static struct audio_player player;
 static inline void SetupSampleInterrupt(void);
 static inline void SetupPWM(void);
 static inline void SetupButton(void);
+static inline void SetupLED(void);
+static inline void EnableLED(void);
+static inline void DisableLED(void);
 static inline void SetPWMDutyCycle(uint8_t duty_cycle);
 static inline uint8_t GetPWMDutyCycle(void);
-static inline void RampUpDutyCycle(uint8_t target_duty_cycle);
-static inline void RampDownDutyCycle(uint8_t target_duty_cycle);
+static void RampDutyCycle(uint8_t target_duty_cycle);
 
 //////////////////////////////////////////////////////////////////////////
 //INTERUPT SERVICE ROUTINES
@@ -82,8 +88,11 @@ int main(void)
     SetupSampleInterrupt();
     SetupPWM();
     SetupButton();
+    SetupLED();
 
     sei();
+
+    RampDutyCycle(128);
 
     uint8_t counter = 2;
     while (1)
@@ -91,11 +100,12 @@ int main(void)
         AudioPlayer_Play(&player, AudioLibrary_GetSoundById(counter % 3));
         AudioPlayer_Wait(&player);
 
-        RampUpDutyCycle(255);
+        RampDutyCycle(0);
+        DisableLED();
         set_sleep_mode(SLEEP_MODE_PWR_DOWN);
         sleep_mode();
 
-        RampDownDutyCycle(128);
+        RampDutyCycle(128);
         ++counter;
     }
 }
@@ -112,8 +122,8 @@ static inline void SetupSampleInterrupt(void)
     /* Set prescaler to 1:8 */
     TCCR0B |= (1 << CS01);
 
-    /* A compare value of 128 gives a frequency of 8 kHz*/
-    OCR0A = 125;
+    /* Set compare value for the desired frequency */
+    OCR0A = ((F_CPU / PRESCALER_RATIO) / SAMPLE_FREQUENCY);
 
     /* Enabled interrupt on compare match A. */
     TIMSK0 |= (1 << OCIE0A);
@@ -134,17 +144,36 @@ static inline void SetupPWM(void)
     /* Set prescaler to 1:1 */
     TCCR1B |= (1 << CS10);
 
+    /* Set PWM duty cycle to 0%*/
+    OCR1A = 0;
 }
 
 static inline void SetupButton(void)
 {
-    /* Set PB0 as output with pull-up */
-    DDRB |= (1 << PB0);
+    /* Set PB0 as input with pull-up */
+    DDRB &= ~(1 << PB0);
     PORTB |= (1 << PB0);
 
     /* Enable pin change interrupts */
     PCMSK0 |= (1 << PCINT0);
     PCICR |= (1 << PCIE0);
+}
+
+static inline void SetupLED(void)
+{
+    /* Set PB2 as output and pull low. */
+    DDRB |= (1 << PB2);
+    PORTB &= ~(1 << PB2);
+}
+
+static inline void EnableLED(void)
+{
+    PORTB |= (1 << PB2);
+}
+
+static inline void DisableLED(void)
+{
+    PORTB &= ~(1 << PB2);
 }
 
 static inline void SetPWMDutyCycle(uint8_t duty_cycle)
@@ -157,30 +186,14 @@ static inline uint8_t GetPWMDutyCycle(void)
     return OCR1A;
 }
 
-static inline void RampUpDutyCycle(uint8_t target_duty_cycle)
+static void RampDutyCycle(uint8_t target_duty_cycle)
 {
-    if (target_duty_cycle > GetPWMDutyCycle())
+    int8_t modifier = (target_duty_cycle > GetPWMDutyCycle()) ? 1 : -1;
+
+    for (uint8_t duty_cycle = GetPWMDutyCycle(); duty_cycle != target_duty_cycle; duty_cycle += modifier)
     {
-        for (uint8_t duty_cycle = GetPWMDutyCycle(); duty_cycle < target_duty_cycle; ++duty_cycle)
-        {
-            SetPWMDutyCycle(duty_cycle);
-
-            /* A delay of 125 μS gives a frequency of 8 kHz. */
-            _delay_us(125);
-        }
+        SetPWMDutyCycle(duty_cycle);
+        _delay_us(SAMPLE_PERIOD_US);
     }
-}
-
-static inline void RampDownDutyCycle(uint8_t target_duty_cycle)
-{
-    if (target_duty_cycle > GetPWMDutyCycle())
-    {
-        for (uint8_t duty_cycle = GetPWMDutyCycle(); duty_cycle > target_duty_cycle; --duty_cycle)
-        {
-            SetPWMDutyCycle(duty_cycle);
-
-            /* A delay of 125 μS gives a frequency of 8 kHz. */
-            _delay_us(125);
-        }
-    }
+    SetPWMDutyCycle(GetPWMDutyCycle() + modifier);
 }
