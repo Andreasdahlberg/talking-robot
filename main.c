@@ -24,6 +24,7 @@
 
 #define SAMPLE_FREQUENCY    (8000)
 #define SAMPLE_PERIOD_US    (1000000 / SAMPLE_FREQUENCY)
+#define PRESCALER_RATIO     (1)
 
 //////////////////////////////////////////////////////////////////////////
 //TYPE DEFINITIONS
@@ -121,8 +122,8 @@ static inline void SetupSampleInterrupt(void)
     /* Set prescaler to 1:8 */
     TCCR0B |= (1 << CS01);
 
-    /* A compare value of 128 gives a frequency of 8 kHz*/
-    OCR0A = SAMPLE_PERIOD_US;
+    /* Set compare value for the desired frequency */
+    OCR0A = ((F_CPU / PRESCALER_RATIO) / SAMPLE_FREQUENCY);
 
     /* Enabled interrupt on compare match A. */
     TIMSK0 |= (1 << OCIE0A);
