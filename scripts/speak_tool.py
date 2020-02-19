@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*
-#
 
 """Tool for generating wav-files from text."""
 
@@ -37,7 +36,7 @@ class SpeakTool(object):
         subprocess.call(command_str, shell=True)
 
     def text_to_speech(self, text, voice='en-us', bit_rate=8000):
-        speak = ESpeakNG()
+        speak = ESpeakNG(volume=200)
         speak.voice = voice
 
         wav_data = speak.synth_wav(text)
@@ -46,10 +45,11 @@ class SpeakTool(object):
 
         self._convert(bit_rate)
 
+
     def save(self, output_file):
         self._tmp_out_file.seek(0)
-        with open(output_file, 'wb') as f:
-            f.write(self._tmp_out_file.read())
+        output_file.write(self._tmp_out_file.read())
+
 
 
 def main():

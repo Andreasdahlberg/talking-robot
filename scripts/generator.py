@@ -30,7 +30,7 @@ def main():
             st.text_to_speech(text=json_entry['words'], voice='mb-sw1')
 
             with tempfile.NamedTemporaryFile() as tmp:
-                st.save_f(tmp)
+                st.save(tmp)
                 wav = wav2cstruct.Wav(json_entry['name'])
                 wav.load(tmp.name)
 
