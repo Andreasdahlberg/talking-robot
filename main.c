@@ -24,18 +24,61 @@
 
 #define SAMPLE_FREQUENCY    (8000)
 #define SAMPLE_PERIOD_US    (1000000 / SAMPLE_FREQUENCY)
-#define PRESCALER_RATIO     (1)
+#define PRESCALER_RATIO     (8)
 
 //////////////////////////////////////////////////////////////////////////
 //TYPE DEFINITIONS
 //////////////////////////////////////////////////////////////////////////
+
+struct audio_sequence
+{
+    size_t length;
+    uint8_t data[10];
+};
 
 //////////////////////////////////////////////////////////////////////////
 //VARIABLES
 //////////////////////////////////////////////////////////////////////////
 
 static struct audio_player player;
-
+static volatile uint8_t sample_tick;
+static struct audio_sequence sequences[] = {
+    {
+        .length = 4,
+        .data = {
+            AUDIOLIBRARY_I_ID,
+            AUDIOLIBRARY_AM_ID,
+            AUDIOLIBRARY_A_ID,
+            AUDIOLIBRARY_ROBOT_ID
+        }
+    },
+    {
+        .length = 5,
+        .data = {
+            AUDIOLIBRARY_HI_ID,
+            AUDIOLIBRARY_DELAY_ID(200),
+            AUDIOLIBRARY_WHAT_ID,
+            AUDIOLIBRARY_NAME_ID,
+            AUDIOLIBRARY_YOU_ID
+        }
+    },
+    {
+        .length = 3,
+        .data = {
+            AUDIOLIBRARY_LIKES_ID,
+            AUDIOLIBRARY_YOU_ID,
+            AUDIOLIBRARY_ICECREAM_ID
+        }
+    },
+    {
+        .length = 3,
+        .data = {
+            AUDIOLIBRARY_I_ID,
+            AUDIOLIBRARY_LIKES_ID,
+            AUDIOLIBRARY_DOGS_ID
+        }
+    },
+};
 //////////////////////////////////////////////////////////////////////////
 //LOCAL FUNCTION PROTOTYPES
 //////////////////////////////////////////////////////////////////////////
@@ -49,6 +92,7 @@ static inline void DisableLED(void);
 static inline void SetPWMDutyCycle(uint8_t duty_cycle);
 static inline uint8_t GetPWMDutyCycle(void);
 static void RampDutyCycle(uint8_t target_duty_cycle);
+static void Beep(uint_least16_t frequency, uint_least16_t duration, uint8_t volume);
 
 //////////////////////////////////////////////////////////////////////////
 //INTERUPT SERVICE ROUTINES
@@ -62,12 +106,23 @@ ISR(TIMER0_COMPA_vect)
         {
             uint8_t sample = AudioPlayer_GetNextSample(&player);
             SetPWMDutyCycle(sample);
+
+            if (sample > 160)
+            {
+                    PORTD |= (1 << PD0);
+            }
+            else
+            {
+                    PORTD &= ~(1 << PD0);
+            }
         }
         else
         {
             AudioPlayer_Stop(&player);
         }
     }
+
+    sample_tick = !sample_tick;
 }
 
 ISR(PCINT0_vect)
@@ -94,11 +149,13 @@ int main(void)
 
     RampDutyCycle(128);
 
-    uint8_t counter = 2;
+    uint8_t counter = 0;
     while (1)
     {
-        AudioPlayer_Play(&player, AudioLibrary_GetSoundById(counter % 3));
-        AudioPlayer_Wait(&player);
+        const size_t i = counter % (sizeof(sequences) / sizeof(sequences)[0]);
+
+        AudioPlayer_PlaySequence(&player, sequences[i].data, sequences[i].length, 10);
+        _delay_ms(300);
 
         RampDutyCycle(0);
         DisableLED();
@@ -161,9 +218,9 @@ static inline void SetupButton(void)
 
 static inline void SetupLED(void)
 {
-    /* Set PB2 as output and pull low. */
-    DDRB |= (1 << PB2);
-    PORTB &= ~(1 << PB2);
+    /* Set PD0 as output and pull low. */
+    DDRD |= (1 << PD0);
+    PORTD &= ~(1 << PD0);
 }
 
 static inline void EnableLED(void)
@@ -196,4 +253,33 @@ static void RampDutyCycle(uint8_t target_duty_cycle)
         _delay_us(SAMPLE_PERIOD_US);
     }
     SetPWMDutyCycle(GetPWMDutyCycle() + modifier);
+}
+
+static void Beep(uint_least16_t frequency, uint_least16_t duration, uint8_t volume)
+{
+    assert(frequency <= (SAMPLE_FREQUENCY / 2));
+
+
+    uint_least16_t ticks = 0;
+    const uint_least16_t duration_ticks = duration * 8;
+    const uint_least16_t period_ticks = SAMPLE_FREQUENCY / frequency / 2;
+
+    uint8_t current_tick = sample_tick;
+
+    bool state = false;
+    while(ticks < duration_ticks)
+    {
+        if (sample_tick != current_tick)
+        {
+            current_tick = sample_tick;
+            ++ticks;
+
+
+            if (ticks % period_ticks == 0)
+            {
+                SetPWMDutyCycle((uint8_t)state * volume);
+                state = !state;
+            }
+        }
+    }
 }
