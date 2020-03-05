@@ -52,3 +52,10 @@ Mkfile.old
 dkms.conf
 *.pyc
 *.sublime-workspace
+
+compile_commands.json
+
+# Generated files
+*.inc
+audio_library.c
+audio_library.h
